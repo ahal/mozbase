@@ -49,8 +49,6 @@ try:
 except OSError:
     description = ''
 
-deps = ['mozinfo']
-
 # we only support python 2 right now
 assert sys.version_info[0] == 2
 
@@ -64,12 +62,7 @@ setup(name=PACKAGE_NAME,
       license='MPL 1.1/GPL 2.0/LGPL 2.1',
       packages=find_packages(exclude=['legacy']),
       zip_safe=False,
-      entry_points="""
-          [console_scripts]
-          mozlog = mozlog:cli
-        """,
       platforms =['Any'],
-      install_requires = deps,
       classifiers=['Development Status :: 4 - Beta',
                    'Environment :: Console',
                    'Intended Audience :: Developers',

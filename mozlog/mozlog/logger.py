@@ -33,15 +33,57 @@
 # the terms of any one of the MPL, the GPL or the LGPL. 
 # 
 # ***** END LICENSE BLOCK ***** 
+from logging import getLogger as getSysLogger
+from logging import *
 
-import sys
+_default_level = INFO
+_LoggerClass = getLoggerClass()
+class _MozLogger(_LoggerClass):
+    """
+    MozLogger class which adds three convenience log levels
+    related to automated testing in Mozilla
+    """
+    def testPass(self, message, *args, **kwargs):
+        self.log(PASS, message, *args, **kwargs)
 
-class Logger():
-    def __init__(self):
-        pass
+    def testFail(self, message, *args, **kwargs):
+        self.log(FAIL, message, *args, **kwargs)
 
-def cli(args=sys.argv[1:]):
-    pass
+    def testKnownFail(self, message, *args, **kwargs):
+        self.log(KNOWN_FAIL, message, *args, **kwargs)
 
-if __name__ == '__main__':
-    cli()
+
+PASS       = _default_level + 1
+KNOWN_FAIL = _default_level + 2
+FAIL       = _default_level + 3
+addLevelName(PASS, 'TEST-PASS')
+addLevelName(KNOWN_FAIL, 'TEST-KNOWN-FAIL')
+addLevelName(FAIL, 'TEST-UNEXPECTED-FAIL')
+
+def getLogger(name, filePath=None):
+    """
+    Returns the logger with the specified name.
+    If the logger doesn't exist, it is created.
+
+    name       - The name of the logger to retrieve
+    [filePath] - If specified, the logger will log to the specified filePath
+                 Otherwise, the logger logs to stdout
+                 This parameter only has an effect if the logger doesn't exist
+    """
+    setLoggerClass(_MozLogger)
+
+    if name in Logger.manager.loggerDict:
+        return getSysLogger(name)
+
+    logger = getSysLogger(name)
+    logger.setLevel(default_level)
+    
+    if filePath:
+        handler = FileHandler(filePath)
+    else:
+        handler = StreamHandler()
+    formatStr = '%(name)s %(levelname)s | %(message)s'
+    handler.setFormatter(Formatter(formatStr))
+    logger.addHandler(handler)
+    return logger
+
