@@ -43,6 +43,12 @@ class _MozLogger(_LoggerClass):
     MozLogger class which adds three convenience log levels
     related to automated testing in Mozilla
     """
+    def testStart(self, message, *args, **kwargs):
+        self.log(START, message, *args, **kwargs)
+
+    def testEnd(self, message, *args, **kwargs):
+        self.log(END, message, *args, **kwargs)
+
     def testPass(self, message, *args, **kwargs):
         self.log(PASS, message, *args, **kwargs)
 
@@ -52,15 +58,20 @@ class _MozLogger(_LoggerClass):
     def testKnownFail(self, message, *args, **kwargs):
         self.log(KNOWN_FAIL, message, *args, **kwargs)
 
-
-PASS       = _default_level + 1
-KNOWN_FAIL = _default_level + 2
-FAIL       = _default_level + 3
+# Define mozlog specific log levels
+START      = _default_level + 1
+END        = _default_level + 2
+PASS       = _default_level + 3
+KNOWN_FAIL = _default_level + 4
+FAIL       = _default_level + 5
+# Define associated text of log levels
+addLevelName(START, 'TEST-START')
+addLevelName(END, 'TEST-END')
 addLevelName(PASS, 'TEST-PASS')
 addLevelName(KNOWN_FAIL, 'TEST-KNOWN-FAIL')
 addLevelName(FAIL, 'TEST-UNEXPECTED-FAIL')
 
-def getLogger(name, filePath=None):
+def getLogger(name, logfile=None):
     """
     Returns the logger with the specified name.
     If the logger doesn't exist, it is created.
@@ -76,10 +87,10 @@ def getLogger(name, filePath=None):
         return getSysLogger(name)
 
     logger = getSysLogger(name)
-    logger.setLevel(default_level)
+    logger.setLevel(_default_level)
     
-    if filePath:
-        handler = FileHandler(filePath)
+    if logfile:
+        handler = FileHandler(logfile)
     else:
         handler = StreamHandler()
     formatStr = '%(name)s %(levelname)s | %(message)s'
