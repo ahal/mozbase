@@ -100,7 +100,7 @@ def _extract(path, extdir=None, delete=False):
                 if len(name.rstrip(os.sep).split(os.sep)) == 1]
 
 def _install_dmg(src, dest):
-    proc = subprocess.Popen(["hdiutil", "mount", src], shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen("hdiutil attach " + src, shell=True, stdout=subprocess.PIPE)
     try:
         for data in proc.communicate()[0].split():
             if data.find("/Volumes/") != -1:
@@ -110,9 +110,9 @@ def _install_dmg(src, dest):
             if appFile.endswith(".app"):
                  appName = appFile
                  break
-        shutil.copytree(os.path.join(appDir, appName), dest)
+        subprocess.call("cp -r " + os.path.join(appDir, appName) + " " + dest, shell=True)
     finally:
-        subprocess.call(["hdiutil", "detach", appDir], stdout=open(os.devnull, "w"))
+        subprocess.call("hdiutil detach " + appDir, stdout=open(os.devnull, "w"))
     return os.path.join(dest, appName)
 
 
