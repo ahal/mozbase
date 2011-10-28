@@ -28,5 +28,7 @@ setup(name='mozInstall',
       install_requires=deps,
       entry_points="""
       # -*- Entry points: -*-
+      [console_scripts]
+      mozinstall = mozinstall:cli
       """,
       )

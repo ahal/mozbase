@@ -41,9 +41,14 @@ import subprocess
 import shutil
 import zipfile
 import tarfile
+import sys
 import os
 
-def install(src, dest=None, app="firefox"):
+_default_apps = ["firefox",
+                 "thunderbird",
+                 "fennec"]
+
+def install(src, dest=None, apps=_default_apps):
     src = os.path.realpath(src)
     assert(os.path.isfile(src))
     if not dest:
@@ -57,16 +62,16 @@ def install(src, dest=None, app="firefox"):
         install_dir = _install_exe(src, dest)
 
     if install_dir:
-        return get_binary(install_dir, app="firefox")
+        return get_binary(install_dir, apps=apps)
 
-def get_binary(path, app="firefox"):
+def get_binary(path, apps=_default_apps):
     if mozinfo.isWin:
-        app += ".exe"
-    for root, dirs, files in os.walk(path)L
+        apps = [app + ".exe" for app in apps]
+    for root, dirs, files in os.walk(path):
         for filename in files:
-            if filename == app and os.access(filename, os.X_OK):
-                return os.path.realpath(filename)
-    return 1
+            if filename in apps and os.access(filename, os.X_OK):
+                return os.path.realpath(os.path.join(root, filename))
+    return None
 
 def _extract(path, extdir=None, delete=False):
     """
@@ -121,16 +126,17 @@ def cli(argv=sys.argv[1:]):
     parser = OptionParser()
     parser.add_option("-s", "--source",
                       dest="src",
-                      help="Installation Source File (whatever was downloaded) -\
-                            accepts zip, exe, tar.bz2, tar.gz, and dmg")
+                      help="Installation Source File (whatever was downloaded) "
+                            "-accepts zip, exe, tar.bz2, tar.gz, and dmg")
     parser.add_option("-d", "--destination",
                       dest="dest",
                       default=None,
                       help="Directory to install the application into")
     parser.add_option("--app", dest="app",
-                      default="firefox",
-                      help="Application to install - optional should be all lowercase if\
-                            specified: firefox, mobile, thunderbird, etc")
+                      action="append",
+                      default=_default_apps,
+                      help="Application being installed - optional should be all lowercase if "
+                           "specified: firefox, mobile, thunderbird, etc")
 
     (options, args) = parser.parse_args(argv)
     if not options.src or not os.path.exists(os.path.realpath(options.src)):
@@ -138,9 +144,11 @@ def cli(argv=sys.argv[1:]):
         return 2
 
     # Run it
-    if os.isdir(options.src):
-        return get_binary(options.src, app=options.app)
-    return install(options.src, dest=options.dest, app=options.app)
+    if os.path.isdir(options.src):
+        binary = get_binary(options.src, apps=options.app)
+    else:
+        binary = install(options.src, dest=options.dest, apps=options.app)
+    print binary
 
 if __name__ == "__main__":
     sys.exit(cli())
