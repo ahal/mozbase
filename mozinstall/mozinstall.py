@@ -69,9 +69,9 @@ def get_binary(path, apps=_default_apps):
         apps = [app + ".exe" for app in apps]
     for root, dirs, files in os.walk(path):
         for filename in files:
-            if filename in apps and os.access(filename, os.X_OK):
+            # os.access evaluates to False in osx for some reason
+            if filename in apps and (mozinfo.isMac or os.access(filename, os.X_OK)):
                 return os.path.realpath(os.path.join(root, filename))
-    return None
 
 def _extract(path, extdir=None, delete=False):
     """
@@ -112,7 +112,7 @@ def _install_dmg(src, dest):
                  break
         subprocess.call("cp -r " + os.path.join(appDir, appName) + " " + dest, shell=True)
     finally:
-        subprocess.call("hdiutil detach " + appDir, stdout=open(os.devnull, "w"))
+        subprocess.call("hdiutil detach " + appDir + " -silent", shell=True)
     return os.path.join(dest, appName)
 
 
