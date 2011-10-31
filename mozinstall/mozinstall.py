@@ -69,8 +69,8 @@ def get_binary(path, apps=_default_apps):
         apps = [app + ".exe" for app in apps]
     for root, dirs, files in os.walk(path):
         for filename in files:
-            # os.access evaluates to False in osx for some reason
-            if filename in apps and (mozinfo.isMac or os.access(filename, os.X_OK)):
+            # os.access evaluates to False in osx and windows for some reason
+            if filename in apps and (not mozinfo.isUnix or os.access(filename, os.X_OK)):
                 return os.path.realpath(os.path.join(root, filename))
 
 def _extract(path, extdir=None, delete=False):
@@ -96,8 +96,16 @@ def _extract(path, extdir=None, delete=False):
     bundle.close()
     if delete:
         os.remove(path)
-    return [os.path.join(extdir, name) for name in namelist
-                if len(name.rstrip(os.sep).split(os.sep)) == 1]
+    # namelist returns paths with forward slashes even in windows
+    top_level_files = [os.path.join(extdir, name) for name in namelist
+                             if len(name.rstrip('/').split('/')) == 1]
+    # namelist doesn't include folders in windows, append these to the list
+    if mozinfo.isWin:
+        for name in namelist:
+            root = name[:name.find('/')]
+            if root not in top_level_files:
+                top_level_files.append(root)
+    return top_level_files
 
 def _install_dmg(src, dest):
     proc = subprocess.Popen("hdiutil attach " + src, shell=True, stdout=subprocess.PIPE)
@@ -116,11 +124,12 @@ def _install_dmg(src, dest):
     return os.path.join(dest, appName)
 
 
-# TODO probably hasn't been tested since 1.8.x
 def _install_exe(src, dest):
-    cmd = [src, "/S", "/D=" + os.path.normpath(dest)]
-    proc = subprocess.Popen(cmd)
-    proc.wait()
+    # possibly gets around UAC in vista (still need to run as administrator)
+    os.environ['__compat_layer'] = "RunAsInvoker"
+    cmd = [src, "/S", "/D=" + os.path.realpath(dest)]
+    subprocess.call(cmd)
+    return dest
 
 def cli(argv=sys.argv[1:]):
     parser = OptionParser()
