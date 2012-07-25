@@ -608,9 +608,6 @@ falling back to not using job objects for managing child processes"""
         If outputTimeout is not None, the process will be allowed to continue
         for that number of seconds without producing any output before
         being killed.
-
-        If block is True, the calling thread will wait until all output has
-        been read.
         """
         def _processOutput():
             if not hasattr(self, 'proc'):
