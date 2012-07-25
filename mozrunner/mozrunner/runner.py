@@ -14,7 +14,6 @@ import subprocess
 import sys
 import ConfigParser
 
-from threading import Thread
 from utils import get_metadata_from_egg
 from utils import findInPath
 from mozprofile import *
@@ -151,8 +150,7 @@ class Runner(object):
     def is_running(self):
         return self.process_handler is not None
 
-    def start(self, debug_args=None, interactive=False,
-              read_output=False, timeout=None, outputTimeout=None):
+    def start(self, debug_args=None, interactive=False, timeout=None, outputTimeout=None):
         """
         Run self.command in the proper environment.
         - debug_args: arguments for the debugger
@@ -184,17 +182,17 @@ class Runner(object):
             self.process_handler = self.process_class(cmd, env=self.env, **self.kp_kwargs)
             self.process_handler.run()
 
-            if read_output:
-                self.process_handler.processOutput(timeout, outputTimeout, block=False)
+            # start processing output from the process
+            self.process_handler.processOutput(timeout, outputTimeout)
 
-    def wait(self, timeout=None, outputTimeout=None):
+    def wait(self):
         """Wait for the app to exit."""
         if self.process_handler is None:
             return
         if isinstance(self.process_handler, subprocess.Popen):
             self.process_handler.wait()
         else:
-            self.process_handler.waitForFinish(timeout=timeout, outputTimeout=outputTimeout)
+            self.process_handler.waitForFinish()
         self.process_handler = None
 
     def stop(self):

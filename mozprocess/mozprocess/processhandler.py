@@ -598,7 +598,7 @@ falling back to not using job objects for managing child processes"""
         for handler in self.onFinishHandlers:
             handler()
 
-    def processOutput(self, timeout=None, outputTimeout=None, block=False):
+    def processOutput(self, timeout=None, outputTimeout=None):
         """
         Handle process output until the process terminates or times out.
 
@@ -640,26 +640,21 @@ falling back to not using job objects for managing child processes"""
         
         if not self.outThread:
             self.outThread = threading.Thread(target=_processOutput)
+            self.outThread.daemon = True
             self.outThread.start()
-        if block:
-            self.outThread.join()
 
 
-    def waitForFinish(self, timeout=None, outputTimeout=None):
+    def waitForFinish(self):
         """
         Waits until all output has been read and the process is 
         terminated.
-
-        If timeout is not None, the process will be allowed to continue for
-        that number of seconds before being killed.
-
-        If outputTimeout is not None, the process will be allowed to continue
-        for that number of seconds without producing any output before
-        being killed.
         """
-        self.processOutput(timeout, outputTimeout, block=True)
-        status = self.proc.wait()
-        return status
+        if self.outThread:
+            # Thread.join() blocks the main thread until outThread is finished
+            # wake up once a second in case a keyboard interrupt is sent
+            while self.outThread.isAlive():
+                self.outThread.join(timeout=1)
+        return self.proc.wait()
 
 
     ### Private methods from here on down. Thar be dragons.
