@@ -151,10 +151,15 @@ class Runner(object):
     def is_running(self):
         return self.process_handler is not None
 
-    def start(self, debug_args=None, interactive=False):
+    def start(self, debug_args=None, interactive=False,
+              read_output=False, timeout=None, outputTimeout=None):
         """
         Run self.command in the proper environment.
         - debug_args: arguments for the debugger
+        - interactive: uses subprocess.Popen directly
+        - read_output: sends program output to stdout [default=False]
+        - timeout: see process_handler.waitForFinish
+        - outputTimeout: see process_handler.waitForFinish
         """
 
         # ensure you are stopped
@@ -171,7 +176,6 @@ class Runner(object):
         if debug_args:
             cmd = list(debug_args) + cmd
 
-        #
         if interactive:
             self.process_handler = subprocess.Popen(cmd, env=self.env)
             # TODO: other arguments
@@ -180,9 +184,8 @@ class Runner(object):
             self.process_handler = self.process_class(cmd, env=self.env, **self.kp_kwargs)
             self.process_handler.run()
 
-            # Spin a thread to handle reading the output
-            self.outThread = OutputThread(self.process_handler)
-            self.outThread.start()
+            if read_output:
+                self.process_handler.processOutput(timeout, outputTimeout, block=False)
 
     def wait(self, timeout=None, outputTimeout=None):
         """Wait for the app to exit."""
@@ -246,13 +249,6 @@ class ThunderbirdRunner(Runner):
 
 runners = {'firefox': FirefoxRunner,
            'thunderbird': ThunderbirdRunner}
-
-class OutputThread(Thread):
-    def __init__(self, prochandler):
-        Thread.__init__(self)
-        self.ph = prochandler
-    def run(self):
-        self.ph.waitForFinish()
 
 class CLI(MozProfileCLI):
     """Command line interface."""
