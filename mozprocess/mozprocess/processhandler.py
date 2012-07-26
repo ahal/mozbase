@@ -641,16 +641,23 @@ falling back to not using job objects for managing child processes"""
             self.outThread.start()
 
 
-    def waitForFinish(self):
+    def waitForFinish(self, timeout=None):
         """
         Waits until all output has been read and the process is 
         terminated.
+
+        If timeout is not None, will return after timeout seconds.
         """
         if self.outThread:
             # Thread.join() blocks the main thread until outThread is finished
             # wake up once a second in case a keyboard interrupt is sent
+            count = 0
             while self.outThread.isAlive():
                 self.outThread.join(timeout=1)
+                count += 1
+                if timeout and count > timeout:
+                    return
+
         return self.proc.wait()
 
 

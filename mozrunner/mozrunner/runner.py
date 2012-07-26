@@ -185,14 +185,23 @@ class Runner(object):
             # start processing output from the process
             self.process_handler.processOutput(timeout, outputTimeout)
 
-    def wait(self):
-        """Wait for the app to exit."""
+    def wait(self, timeout=None):
+        """
+        Wait for the app to exit.
+
+        If timeout is not None, will return after timeout seconds.
+        Use is_running() to determine whether or not a timeout occured.
+        Timeout is ignored if interactive was set to True.
+        """
         if self.process_handler is None:
             return
         if isinstance(self.process_handler, subprocess.Popen):
             self.process_handler.wait()
         else:
-            self.process_handler.waitForFinish()
+            self.process_handler.waitForFinish(timeout)
+            if not getattr(self.process_handler.proc, 'returncode', False):
+                # waitForFinish timed out
+                return
         self.process_handler = None
 
     def stop(self):
