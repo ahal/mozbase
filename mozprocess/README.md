@@ -136,11 +136,13 @@ the `onTimeout()` method), process completion (by overriding
 ## Examples
 
 In the most common case, a proces_handler is created, then run followed by wait are called:
+
     proc_handler = ProcessHandler([cmd, args])
     proc_handler.run(outputTimeout=60) # will time out after 60 seconds without output
     proc_handler.wait()
 
 Often, the main thread will do other things:
+
     proc_handler = ProcessHandler([cmd, args])
     proc_handler.run(timeout=60) # will time out after 60 seconds regardless of output
     do_other_work()
@@ -149,6 +151,7 @@ Often, the main thread will do other things:
         proc_handler.wait()
 
 By default output is printed to stdout, but anything is possible:
+
     # this example writes output to both stderr and a file called 'output.log'
     def some_func1(line):
         print >> sys.stderr, line
