@@ -14,19 +14,48 @@ is the central exposed API for mozprocess.  `ProcessHandler` utilizes
 a contained subclass of [subprocess.Popen](http://docs.python.org/library/subprocess.html),
 `Process`, which does the brunt of the process management.
 
-Basic usage:
+## Basic usage
 
     process = ProcessHandler(['command', '-line', 'arguments'],
                              cwd=None, # working directory for cmd; defaults to None
                              env={},   # environment to use for the process; defaults to os.environ
-                             )
-    exit_code = process.waitForFinish(timeout=60) # seconds
+                             )a
+    process.run()
+    exit_code = process.wait(timeout=60) # seconds
 
-`ProcessHandler` offers several other properties and methods as part of its API:
+`ProcessHandler`offers several other properties and methods as part of its API:
+
+    def __init__(self,
+                 cmd,
+                 args=None,
+                 cwd=None,
+                 env=None,
+                 ignore_children = False,
+                 processOutputLine=(),
+                 onTimeout=(),
+                 onFinish=(),
+                 **kwargs):
+        """
+        cmd = Command to run
+        args = array of arguments (defaults to None)
+        cwd = working directory for cmd (defaults to None)
+        env = environment to use for the process (defaults to os.environ)
+        ignore_children = when True, causes system to ignore child processes,
+        defaults to False (which tracks child processes)
+        processOutputLine = handlers to process the output line
+        onTimeout = handlers for timeout event
+        kwargs = keyword args to pass directly into Popen
+
+        NOTE: Child processes will be tracked by default. If for any reason
+        we are unable to track child processes and ignore_children is set to False,
+        then we will fall back to only tracking the root process. The fallback
+        will be logged.
+        """
 
     @property
     def timedOut(self):
         """True if the process has timed out."""
+
 
     def run(self, timeout=None, outputTimeout=None):
         """
@@ -103,6 +132,35 @@ and has no handlers for `onTimeout`, `processOutput`, or `onFinish`.
 the `onTimeout()` method), process completion (by overriding
 `onFinish()`), and to process the command output (by overriding
 `processOutputLine()`).
+
+## Examples
+
+In the most common case, a proces_handler is created, then run followed by wait are called:
+    proc_handler = ProcessHandler([cmd, args])
+    proc_handler.run(outputTimeout=60) # will time out after 60 seconds without output
+    proc_handler.wait()
+
+Often, the main thread will do other things:
+    proc_handler = ProcessHandler([cmd, args])
+    proc_handler.run(timeout=60) # will time out after 60 seconds regardless of output
+    do_other_work()
+
+    if proc_handler.proc.poll():
+        proc_handler.wait()
+
+By default output is printed to stdout, but anything is possible:
+    # this example writes output to both stderr and a file called 'output.log'
+    def some_func1(line):
+        print >> sys.stderr, line
+
+    def some_func2(line):
+        with open('output.log', 'a') as log:
+            log.write('%s\n' % line)
+
+    proc_handler = ProcessHandler([cmd, args])
+    proc_handler.processOutputLineHandlers = [some_func1, some_func2]
+    proc_handler.run()
+    proc_handler.wait()
 
 # TODO
 
