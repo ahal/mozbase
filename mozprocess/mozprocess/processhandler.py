@@ -591,9 +591,17 @@ falling back to not using job objects for managing child processes"""
         """the string value of the command line"""
         return subprocess.list2cmdline([self.cmd] + self.args)
 
-    def run(self):
-        """Starts the process.  waitForFinish must be called to allow the
-           process to complete.
+    def run(self, timeout=None, outputTimeout=None):
+        """
+        Starts the process.  waitForFinish must be called to allow the
+        process to complete.
+        
+        If timeout is not None, the process will be allowed to continue for
+        that number of seconds before being killed.
+
+        If outputTimeout is not None, the process will be allowed to continue
+        for that number of seconds without producing any output before
+        being killed.
         """
         self.didTimeout = False
         self.startTime = datetime.now()
@@ -604,6 +612,8 @@ falling back to not using job objects for managing child processes"""
                                  env=self.env,
                                  ignore_children = self._ignore_children,
                                  **self.keywordargs)
+    
+        self.processOutput(timeout=timeout, outputTimeout=outputTimeout)
 
     def kill(self):
         """
@@ -691,7 +701,7 @@ falling back to not using job objects for managing child processes"""
             self.outThread.start()
 
 
-    def waitForFinish(self, timeout=None):
+    def wait(self, timeout=None):
         """
         Waits until all output has been read and the process is 
         terminated.
@@ -711,6 +721,11 @@ falling back to not using job objects for managing child processes"""
                     return
 
         return self.proc.wait()
+
+    def waitForFinish(self, timeout=None):
+        print >> sys.stderr, "MOZPROCESS WARNING: ProcessHandler.waitForFinish() is deprecated, " \
+                             "use ProcessHandler.wait() instead" 
+        return self.wait(timeout)
 
 
     ### Private methods from here on down. Thar be dragons.

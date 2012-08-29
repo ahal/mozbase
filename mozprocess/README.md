@@ -28,10 +28,17 @@ Basic usage:
     def timedOut(self):
         """True if the process has timed out."""
 
-    def run(self):
+    def run(self, timeout=None, outputTimeout=None):
         """
         Starts the process. waitForFinish must be called to allow the
         process to complete.
+        
+        If timeout is not None, the process will be allowed to continue for
+        that number of seconds before being killed.
+
+        If outputTimeout is not None, the process will be allowed to continue
+        for that number of seconds without producing any output before
+        being killed.
         """
 
     def kill(self):
@@ -59,18 +66,6 @@ Basic usage:
         the OS
         """
 
-    def processOutput(self, timeout=None, outputTimeout=None):
-        """
-        Handle process output until the process terminates or times out.
-
-        If timeout is not None, the process will be allowed to continue for
-        that number of seconds before being killed.
-
-        If outputTimeout is not None, the process will be allowed to continue
-        for that number of seconds without producing any output before
-        being killed.
-        """
-
     def processOutputLine(self, line):
         """Called for each line of output that a process sends to stdout/stderr."""
         for handler in self.processOutputLineHandlers:
@@ -86,7 +81,7 @@ Basic usage:
         for handler in self.onFinishHandlers:
             handler()
 
-    def waitForFinish(self, timeout=None):
+    def wait(self, timeout=None):
         """
         Waits until all output has been read and the process is 
         terminated.
