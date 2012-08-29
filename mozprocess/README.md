@@ -32,7 +32,7 @@ Basic usage:
         """
         Starts the process. waitForFinish must be called to allow the
         process to complete.
- 
+
         If timeout is not None, the process will be allowed to continue for
         that number of seconds before being killed.
 
