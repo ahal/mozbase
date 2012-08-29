@@ -595,7 +595,7 @@ falling back to not using job objects for managing child processes"""
         """
         Starts the process.  waitForFinish must be called to allow the
         process to complete.
-        
+ 
         If timeout is not None, the process will be allowed to continue for
         that number of seconds before being killed.
 
@@ -612,7 +612,7 @@ falling back to not using job objects for managing child processes"""
                                  env=self.env,
                                  ignore_children = self._ignore_children,
                                  **self.keywordargs)
-    
+ 
         self.processOutput(timeout=timeout, outputTimeout=outputTimeout)
 
     def kill(self):
@@ -724,7 +724,7 @@ falling back to not using job objects for managing child processes"""
 
     def waitForFinish(self, timeout=None):
         print >> sys.stderr, "MOZPROCESS WARNING: ProcessHandler.waitForFinish() is deprecated, " \
-                             "use ProcessHandler.wait() instead" 
+                             "use ProcessHandler.wait() instead"
         return self.wait(timeout)
 
 
