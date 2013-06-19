@@ -3,6 +3,7 @@ import os
 import posixpath
 import re
 import shutil
+import subprocess
 import tempfile
 import time
 import traceback
@@ -16,7 +17,8 @@ __all__ = ['RemoteRunner', 'B2GRunner', 'remote_runners']
 
 class RemoteRunner(Runner):
 
-    def __init__(self, profile, devicemanager,
+    def __init__(self, profile,
+                       devicemanager,
                        clean_profile=None,
                        process_class=None,
                        env=None,
@@ -38,7 +40,7 @@ class RemoteRunner(Runner):
             return
 
         if self.dm.fileExists(remote_path):
-            self.dm._checkCmdAs(['shell', 'dd', 'if=%s' % remote_path, 'of=%s.orig' % remote_path])
+            self.dm.shellCheckOutput(['dd', 'if=%s' % remote_path, 'of=%s.orig' % remote_path])
             self.backup_files.add(remote_path)
 
 
@@ -66,7 +68,7 @@ class RemoteRunner(Runner):
 
         for backup_file in self.backup_files:
             # Restore the original profiles.ini
-            self.dm._checkCmdAs(['shell', 'dd', 'if=%s.orig' % backup_file, 'of=%s' % backup_file])
+            self.dm.shellCheckOutput(['dd', 'if=%s.orig' % backup_file, 'of=%s' % backup_file])
             self.dm.removeFile("%s.orig" % backup_file)
 
         # Delete any bundled extensions
@@ -123,34 +125,27 @@ class B2GRunner(RemoteRunner):
         self._setup_remote_profile()
         # reboot device so it starts up with the proper profile
         if not self.marionette.emulator:
-            self.rebootDevice()
-            time.sleep(5)
+            self._reboot_device()
             #wait for wlan to come up
-            if not self.waitForNet():
+            if not self._wait_for_net():
                 raise Exception("network did not come up, please configure the network" +
                                 " prior to running before running the automation framework")
 
-        self.dm._runCmd(['shell', 'stop', 'b2g'])
-        time.sleep(5)
+        self.dm.shellCheckOutput(['stop', 'b2g'])
 
         self.kp_kwargs['processOutputLine'] = [self.on_output]
         self.kp_kwargs['onTimeout'] = [self.on_timeout]
         self.process_handler = self.process_class(self.command, **self.kp_kwargs)
         self.process_handler.run(timeout=timeout, outputTimeout=outputTimeout)
 
-        time.sleep(5)
-
         # Set up port forwarding again for Marionette, since any that
         # existed previously got wiped out by the reboot.
         if not self.marionette.emulator:
-            self.dm._checkCmd(['forward',
-                               'tcp:%s' % self.marionette.port,
-                               'tcp:%s' % self.marionette.port])
-
-        if self.marionette.emulator:
-            self.marionette.emulator.wait_for_port()
-        else:
-            time.sleep(5)
+            subprocess.Popen([self.dm._adbPath,
+                              'forward',
+                              'tcp:%s' % self.marionette.port,
+                              'tcp:%s' % self.marionette.port]).communicate()
+        self.marionette.wait_for_port()
 
         # start a marionette session
         session = self.marionette.start_session()
@@ -197,20 +192,9 @@ class B2GRunner(RemoteRunner):
                          "out after %s seconds with no output",
                          self.last_test, self.timeout)
 
-
-    def _restart_b2g(self):
-        # TODO hangs in subprocess.Popen without this delay
-        time.sleep(5)
-        self.dm._checkCmd(['shell', 'stop', 'b2g'])
-        # Wait for a bit to make sure B2G has completely shut down.
-        time.sleep(10)
-        self.dm._checkCmd(['shell', 'start', 'b2g'])
-        if self.marionette.emulator:
-            self.marionette.emulator.wait_for_port()
-
     def _reboot_device(self):
-        serial, status = self.getDeviceStatus()
-        self.dm._runCmd(['shell', '/system/bin/reboot'])
+        serial, status = self._get_device_status()
+        self.dm.shellCheckOutput(['/system/bin/reboot'])
 
         # The reboot command can return while adb still thinks the device is
         # connected, so wait a little bit for it to disconnect from adb.
@@ -228,21 +212,40 @@ class B2GRunner(RemoteRunner):
             rserial, rstatus = self.getDeviceStatus(serial)
         self.log.info('device:', serial, 'status:', rstatus)
 
-
     def _get_device_status(self, serial=None):
         # If we know the device serial number, we look for that,
         # otherwise we use the (presumably only) device shown in 'adb devices'.
         serial = serial or self.dm._deviceSerial
         status = 'unknown'
 
-        for line in self.dm._runCmd(['devices']).stdout.readlines():
+        proc = subprocess.Popen([self.dm._adbPath, 'devices'], stdout=subprocess.PIPE)
+        line = proc.stdout.readline()
+        while line != '':
             result = re.match('(.*?)\t(.*)', line)
             if result:
                 thisSerial = result.group(1)
                 if not serial or thisSerial == serial:
                     serial = thisSerial
                     status = result.group(2)
+                    break
+            line = proc.stdout.readline()
         return (serial, status)
+
+    def _wait_for_net(self):
+        active = False
+        time_out = 0
+        while not active and time_out < 40:
+            proc = subprocess.Popen([self.dm._adbPath, 'shell', '/system/bin/netcfg'])
+            proc.stdout.readline() # ignore first line
+            line = proc.stdout.readline()
+            while line != "":
+                if (re.search(r'UP\s+(?:[0-9]{1,3}\.){3}[0-9]{1,3}', line)):
+                    active = True
+                    break
+                line = proc.stdout.readline()
+            time_out += 1
+            time.sleep(1)
+        return active
 
     def _setup_remote_profile(self):
         """
@@ -250,25 +253,28 @@ class B2GRunner(RemoteRunner):
         """
 
         # copy the profile to the device.
-        self.dm._checkCmdAs(['shell', 'rm', '-r', self.remote_profile])
+        if self.dm.dirExists(self.remote_profile):
+            self.dm.shellCheckOutput(['rm', '-r', self.remote_profile])
+
         try:
             self.dm.pushDir(self.profile.profile, self.remote_profile)
         except DMError:
             self.log.error("Automation Error: Unable to copy profile to device.")
             raise
 
-        # Copy the extensions to the B2G bundles dir.
         extension_dir = os.path.join(self.profile.profile, 'extensions', 'staged')
-        # need to write to read-only dir
-        self.dm._checkCmdAs(['remount'])
-        for filename in os.listdir(extension_dir):
-            self.dm._checkCmdAs(['shell', 'rm', '-rf',
-                                  os.path.join(self.bundles_dir, filename)])
-        try:
-            self.dm.pushDir(extension_dir, self.bundles_dir)
-        except DMError:
-            self.log.error("Automation Error: Unable to copy extensions to device.")
-            raise
+        if os.path.isdir(extension_dir):
+            # Copy the extensions to the B2G bundles dir.
+            # need to write to read-only dir
+            subprocess.Popen([self.dm._adbPath, 'remount']).communicate()
+            for filename in os.listdir(extension_dir):
+                self.dm.shellCheckOutput(['rm', '-rf',
+                                          os.path.join(self.bundles_dir, filename)])
+            try:
+                self.dm.pushDir(extension_dir, self.bundles_dir)
+            except DMError:
+                self.log.error("Automation Error: Unable to copy extensions to device.")
+                raise
 
         if not self.dm.fileExists(self.remote_profiles_ini):
             raise DMError("The profiles.ini file '%s' does not exist on the device" % self.remote_profiles_ini)

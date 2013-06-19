@@ -8,7 +8,7 @@ __all__ = ['CLI',
            'cli',
            'package_metadata',
            'Runner',
-           'runners',
+           'local_runners',
            'FirefoxRunner',
            'MetroFirefoxRunner',
            'ThunderbirdRunner']
@@ -23,7 +23,7 @@ import ConfigParser
 
 from utils import get_metadata_from_egg
 from utils import findInPath
-from mozprofile import Profile, FirefoxProfile, FirefoxMetroProfile, ThunderbirdProfile, MozProfileCLI
+from mozprofile import Profile, FirefoxProfile, MetroFirefoxProfile, ThunderbirdProfile, MozProfileCLI
 from runner import Runner
 
 if mozinfo.isMac:
@@ -249,9 +249,9 @@ class ThunderbirdRunner(Runner):
     """Specialized Runner subclass for running Thunderbird"""
     profile_class = ThunderbirdProfile
 
-runners = {'firefox': FirefoxRunner,
-           'metrofirefox' : MetroFirefoxRunner,
-           'thunderbird': ThunderbirdRunner}
+local_runners = {'firefox': FirefoxRunner,
+                 'metrofirefox' : MetroFirefoxRunner,
+                 'thunderbird': ThunderbirdRunner}
 
 class CLI(MozProfileCLI):
     """Command line interface."""
@@ -281,10 +281,10 @@ class CLI(MozProfileCLI):
 
         # choose appropriate runner and profile classes
         try:
-            self.runner_class = runners[self.options.app]
+            self.runner_class = local_runners[self.options.app]
         except KeyError:
             self.parser.error('Application "%s" unknown (should be one of "%s")' %
-                              (self.options.app, ', '.join(runners.keys())))
+                              (self.options.app, ', '.join(local_runners.keys())))
 
     def add_options(self, parser):
         """add options to the parser"""

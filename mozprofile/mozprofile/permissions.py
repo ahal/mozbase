@@ -297,7 +297,7 @@ class Permissions(object):
         return preferences for Proxy Auto Config. originally taken from
         http://mxr.mozilla.org/mozilla-central/source/build/automation.py.in
         """
-        proxy = DEFAULT_PORTS
+        proxy = DEFAULT_PORTS.copy()
 
         # We need to proxy every server but the primary one.
         origins = ["'%s'" % l.url()
